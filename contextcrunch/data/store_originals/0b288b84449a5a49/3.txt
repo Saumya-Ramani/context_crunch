@@ -1,0 +1,300 @@
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...
+src/billing/pricing.py
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply_discount(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    def apply_tax(self, rate):
+        self.total = round_price(self.total * (1 + rate))
+    # ... 180 more lines of pricing helpers ...

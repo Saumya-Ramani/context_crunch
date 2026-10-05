@@ -1,0 +1,119 @@
+=== QUESTION FORMAT ===
+{
+  "intent": {
+    "type": "choice",
+    "instructions": "What does the customer want in `message`?",
+    "criteria": {
+      "refund": "money returned or a duplicate charge reversed",
+      "technical_help": "a bug, outage or integration problem",
+      "billing_question": "a question about an invoice, plan or payment method",
+      "information": "general information, pricing or how-to",
+      "cancellation": "wants to cancel or downgrade",
+      "other": "none of the other options fits"
+    }
+  },
+  "is_urgent": {
+    "type": "noul",
+    "instructions": "Does `message` communicate time pressure or a deadline?"
+  },
+  "frustration": {
+    "type": "score",
+    "instructions": "How frustrated does the customer sound in `message`?",
+    "criteria": [
+      "calm and neutral",
+      "concerned but civil",
+      "clearly annoyed",
+      "very angry or using strong language"
+    ]
+  },
+  "refund_requested": {
+    "type": "noul",
+    "instructions": "Does the customer ask for money back?"
+  },
+  "churn_risk": {
+    "type": "noul",
+    "instructions": "Does `message` suggest the customer may leave for a competitor or cancel?"
+  }
+}
+
+=== SECONDS PER CALL (short) === 4.441
+
+=== RAW RESULT ===
+{
+  "model": "laya-rl-agent",
+  "answers": {
+    "intent": {
+      "type": "choice",
+      "choice": "other",
+      "probabilities": {
+        "refund": 0.1505,
+        "technical_help": 0.0156,
+        "billing_question": 0.3516,
+        "information": 0.011,
+        "cancellation": 0.007,
+        "other": 0.4643
+      },
+      "confidence": 0.3538,
+      "answer_confidence": 0.4643,
+      "action": {
+        "act_probability": 1.0
+      }
+    },
+    "is_urgent": {
+      "type": "noul",
+      "noul": 0.2647,
+      "confidence": 0.7353,
+      "answer_confidence": 0.7353,
+      "action": {
+        "act_probability": 1.0
+      }
+    },
+    "frustration": {
+      "type": "score",
+      "score": 1.3057,
+      "legend": {
+        "0": "calm and neutral",
+        "1": "concerned but civil",
+        "2": "clearly annoyed",
+        "3": "very angry or using strong language"
+      },
+      "probabilities": {
+        "0": 0.1944,
+        "1": 0.363,
+        "2": 0.3853,
+        "3": 0.0574
+      },
+      "confidence": 0.1216,
+      "answer_confidence": 0.3853,
+      "action": {
+        "act_probability": 1.0
+      }
+    },
+    "refund_requested": {
+      "type": "noul",
+      "noul": 0.7376,
+      "confidence": 0.7376,
+      "answer_confidence": 0.7376,
+      "action": {
+        "act_probability": 1.0
+      }
+    },
+    "churn_risk": {
+      "type": "noul",
+      "noul": 0.1192,
+      "confidence": 0.8808,
+      "answer_confidence": 0.8808,
+      "action": {
+        "act_probability": 1.0
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 289,
+    "output_tokens": 0,
+    "state_tokens": 9,
+    "state_tokens_dropped": 0,
+    "truncated": false,
+    "truncated_questions": []
+  }
+}

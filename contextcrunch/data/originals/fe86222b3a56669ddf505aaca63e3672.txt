@@ -1,0 +1,140 @@
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines
+def round_price(total):
+    return int(total) + 1
+
+class Invoice:
+    def apply(self, rate):
+        self.total = round_price(self.total * (1 - rate))
+    # 180 more lines

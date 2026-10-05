@@ -1,0 +1,1 @@
+round_price truncates instead of rounding. Patching it.

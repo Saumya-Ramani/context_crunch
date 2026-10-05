@@ -1,0 +1,87 @@
+{
+  "model": "laya-0.3.4/english",
+  "answers": {
+    "verdict": {
+      "id": "verdict",
+      "type": "choice",
+      "choice": "keep",
+      "noul": null,
+      "score": null,
+      "confidence": 0.086,
+      "answer_confidence": 0.4807,
+      "probabilities": {
+        "keep": 0.4807,
+        "truncate": 0.3697,
+        "drop": 0.1495
+      },
+      "legend": {},
+      "action": null
+    },
+    "essential": {
+      "id": "essential",
+      "type": "noul",
+      "choice": null,
+      "noul": 0.7072,
+      "score": null,
+      "confidence": null,
+      "answer_confidence": 0.29279999999999995,
+      "probabilities": {},
+      "legend": {},
+      "action": null
+    },
+    "consumed": {
+      "id": "consumed",
+      "type": "noul",
+      "choice": null,
+      "noul": 0.8286,
+      "score": null,
+      "confidence": null,
+      "answer_confidence": 0.1714,
+      "probabilities": {},
+      "legend": {},
+      "action": null
+    },
+    "superseded": {
+      "id": "superseded",
+      "type": "noul",
+      "choice": null,
+      "noul": 0.747,
+      "score": null,
+      "confidence": null,
+      "answer_confidence": 0.253,
+      "probabilities": {},
+      "legend": {},
+      "action": null
+    },
+    "relevance": {
+      "id": "relevance",
+      "type": "score",
+      "choice": null,
+      "noul": null,
+      "score": 2.1661,
+      "confidence": 0.2097,
+      "answer_confidence": 0.4594,
+      "probabilities": {
+        "0": 0.0208,
+        "1": 0.156,
+        "2": 0.4594,
+        "3": 0.3638
+      },
+      "legend": {
+        "0": "noise or boilerplate with no future use",
+        "1": "background, unlikely to be needed again",
+        "2": "supporting, may be referenced later",
+        "3": "critical, the agent needs this to finish the goal"
+      },
+      "action": null
+    }
+  },
+  "usage": {
+    "input_tokens": 908,
+    "output_tokens": 0,
+    "state_tokens": null,
+    "state_tokens_dropped": null,
+    "truncated": null,
+    "truncated_questions": []
+  }
+}

@@ -1,0 +1,40 @@
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1
+def round_price(value):
+    return int(value) + 1

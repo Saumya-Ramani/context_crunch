@@ -1,0 +1,1 @@
+Patched round_price to use Decimal ROUND_HALF_UP.
