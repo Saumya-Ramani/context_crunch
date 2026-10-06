@@ -22,7 +22,7 @@ CODE = (
     "        self.total = round_price(self.total * (1 - rate))\n"
     "    # ... 180 more lines of pricing helpers ...\n"
 ) * 30
-NOISE = "Collecting pytest\nDownloading pluggy-1.5.0\nSuccessfully installed pytest-8.2.1\n" * 90
+INSTALL_LOG = "Collecting pytest\nDownloading pluggy-1.5.0\nSuccessfully installed pytest-8.2.1\n" * 90
 
 MESSAGES = [
     {"role": "system", "content": "You are a coding assistant."},
@@ -30,7 +30,7 @@ MESSAGES = [
     {"role": "assistant", "content": "Plan: read the file, patch it, run the tests."},
     {"role": "tool", "name": "read_file", "tool_call_id": "c1", "content": CODE},
     {"role": "assistant", "content": "round_price truncates instead of rounding."},
-    {"role": "tool", "name": "run_in_terminal", "tool_call_id": "c2", "content": NOISE},
+    {"role": "tool", "name": "run_in_terminal", "tool_call_id": "c2", "content": INSTALL_LOG},
     {"role": "assistant", "content": "Patched round_price to use Decimal."},
     {"role": "tool", "name": "run_tests", "tool_call_id": "c3", "content": "147 passed in 4.05s\n"},
     {"role": "assistant", "content": "All 147 tests pass."},

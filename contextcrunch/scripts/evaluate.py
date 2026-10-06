@@ -15,9 +15,8 @@ noise went, and how long each trace took.
 
 Run from the repo root:
 
-    python scripts/evaluate.py --fake     # offline, needs traces made with --mark
     python scripts/evaluate.py            # the real hosted model
-    python scripts/evaluate.py --fake --archetype coding --verbose
+    python scripts/evaluate.py --archetype coding --verbose
 
 Results are written to ``data/results.csv``, one row per trace, so two runs can
 be compared with a diff rather than by eye.
@@ -44,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from contextcrunch.agents.scout import AUTO, ScoutAgent  # noqa: E402
 from contextcrunch.agents.worker import CompactorAgent  # noqa: E402
+from contextcrunch.core.banner import print_banner  # noqa: E402
 from contextcrunch.core.messages import as_messages  # noqa: E402
 from contextcrunch.core.settings import get_settings, reset_settings_cache  # noqa: E402
 from contextcrunch.core.tokens import count_tokens  # noqa: E402
@@ -188,15 +188,6 @@ async def score_one(
 async def run(args: argparse.Namespace) -> pd.DataFrame:
     """Score every trace and return the results frame."""
     settings = get_settings()
-    if args.fake:
-        # Force the offline backend regardless of what .env says. The setting is
-        # overridden on the object AND in the environment, because
-        # ``build_engine`` reads ``get_settings()`` again on the way in.
-        settings = settings.model_copy(update={"laya_mode": "fake"})
-        os.environ["CC_LAYA_MODE"] = "fake"
-        reset_settings_cache()
-        settings = get_settings()
-
     engine = build_engine(settings)
     scout = ScoutAgent()
 
@@ -321,11 +312,6 @@ def by_archetype(frame: pd.DataFrame, coloured: bool) -> str:
 def main() -> None:
     """Score every trace, print the table and save the CSV."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument(
-        "--fake",
-        action="store_true",
-        help="force the offline FakeBackend instead of the configured model",
-    )
     parser.add_argument("--traces", type=Path, default=TRACES)
     parser.add_argument("--out", type=Path, default=RESULTS)
     parser.add_argument(
@@ -337,8 +323,10 @@ def main() -> None:
     args = parser.parse_args()
 
     coloured = sys.stdout.isatty()
-    mode = "fake (offline)" if args.fake else get_settings().laya_mode
-    print(f"evaluating with: {mode}")
+    settings = get_settings()
+    engine = build_engine(settings)
+    print_banner(settings, engine)
+    print(f"evaluating with: {settings.laya_mode}")
     print()
 
     frame = asyncio.run(run(args))

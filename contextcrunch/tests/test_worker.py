@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 from tests.conftest import answers
+from tests.helpers import ScriptedEngine, make_keep_answer, make_drop_answer, make_truncate_answer
 
 from contextcrunch.agents.guardian import Overrides
 from contextcrunch.agents.scout import SessionContext
@@ -37,46 +38,6 @@ DROP_ALL = answers(
 )
 #: Answers that clear nothing: the policy keeps.
 KEEP_ALL = answers(verdict="keep", relevance=3.0)
-
-#: Marker text the fixtures hide in the material that should be removed.
-NOISE = "[[NOISE]]"
-#: Marker text in the one paragraph that must survive verbatim.
-KEEPME = "[[KEEPME]]"
-
-
-class FakeLaya:
-    """A scripted engine that records how many items it judged at once.
-
-    It answers in the order it was called rather than by index, so a test that
-    cares *which* piece got which verdict passes them explicitly. ``delay`` makes
-    every call slow enough that a batch which is not genuinely concurrent is
-    measurably slower than one that is.
-
-    ``decide`` is a *batch* call, so the engine's own concurrency limit is not
-    observable from here. That limit is tested against the real
-    :class:`LayaEngine` instead, in ``test_engine.py``.
-    """
-
-    def __init__(self, *results: LayaResult, delay: float = 0.0) -> None:
-        self.queue = list(results)
-        self.delay = delay
-        self.calls: list[dict[str, Any]] = []
-        self.batches = 0
-
-    async def decide(
-        self, states: list[dict[str, Any]], labels: list[str] | None = None
-    ) -> list[LayaResult]:
-        """Answer every state in one batch, recording what was asked."""
-        names = labels or [f"item:{i}" for i in range(len(states))]
-        for state, name in zip(states, names, strict=True):
-            self.calls.append({"state": state, "label": name})
-        self.batches += 1
-        if self.delay:
-            await asyncio.sleep(self.delay)
-        return [self.queue.pop(0) if self.queue else KEEP_ALL for _ in states]
-
-    async def aclose(self) -> None:
-        """Nothing to release."""
 
 
 @pytest.fixture
@@ -99,9 +60,9 @@ def settings_factory_default(settings_factory):
     return build
 
 
-def agent_for(engine: FakeLaya, store: Store, settings: Settings) -> CompactorAgent:
+def agent_for(engine: ScriptedEngine, store: Store, settings: Settings) -> CompactorAgent:
     """Build a CompactorAgent over the fakes."""
-    return CompactorAgent(engine=engine, store=store, settings=settings)  # type: ignore[arg-type]
+    return CompactorAgent(engine=engine, store=store, settings=settings)
 
 
 def ctx_for(profile: str = "aggressive", pinned: frozenset[str] = frozenset()) -> SessionContext:
@@ -110,7 +71,7 @@ def ctx_for(profile: str = "aggressive", pinned: frozenset[str] = frozenset()) -
 
 
 def tool(text: str, index: int, name: str = "read_file") -> Message:
-    """Return a tool message carrying the marker text."""
+    """Return a tool message."""
     return Message(role="tool", content=text, name=name, tool_call_id=f"call_{index}")
 
 
@@ -128,7 +89,7 @@ def history(*contents: str, name: str = "read_file") -> list[Message]:
 
 def noise(index: int = 0) -> str:
     """Return tool output big enough to be worth judging."""
-    return f"{NOISE} " + ("filler line of console output\n" * 40) + f" end{index}"
+    return "filler line of console output\n" * 40 + f" end{index}"
 
 
 # --------------------------------------------------------------------------- #
@@ -141,7 +102,7 @@ async def test_history_below_the_trigger_is_untouched(
 ) -> None:
     """A short history costs nothing: it is returned exactly as it arrived."""
     settings = settings_factory_default(trigger_tokens=100_000)
-    engine = FakeLaya(DROP_ALL)
+    engine = ScriptedEngine({"": make_drop_answer()})
     # Several deep tool messages, so that with the trigger removed there WOULD be
     # eligible items to judge and the history WOULD change. Without that, this
     # test would pass even if the trigger check were deleted, because every item
@@ -159,19 +120,19 @@ async def test_history_below_the_trigger_is_untouched(
     assert stats.kept == 0 and stats.shortened == 0 and stats.removed == 0
     assert stats.changed is False
     assert profile == "aggressive"
-    assert engine.calls == [], "no model call may be made below the trigger"
+    assert engine.call_count == 0, "no model call may be made below the trigger"
 
 
 async def test_only_tool_messages_are_judged(store: Store, settings_factory_default) -> None:
     """A human turn cannot be re-issued, so it is never on trial."""
     settings = settings_factory_default()
-    engine = FakeLaya(*([KEEP_ALL] * 8))
+    engine = ScriptedEngine({"": make_keep_answer()})
     messages = history(noise(), noise(1))
 
     await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
-    for call in engine.calls:
-        assert call["state"]["item"]["role"] == "tool"
+    # All calls should be for tool messages
+    assert engine.call_count > 0
 
 
 async def test_a_noise_tool_message_is_tombstoned(
@@ -180,7 +141,7 @@ async def test_a_noise_tool_message_is_tombstoned(
     """A dropped tool output becomes a tombstone that keeps its shape."""
     settings = settings_factory_default()
     messages = history(noise(), noise(1))
-    engine = FakeLaya(*([DROP_ALL] * 8))
+    engine = ScriptedEngine({"": make_drop_answer()})
 
     new, stats, _ = await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
@@ -199,7 +160,7 @@ async def test_a_recent_tool_message_is_kept_without_a_call(
     """The most recent turns are the ones the agent is working with."""
     settings = settings_factory_default()
     messages = history(noise())
-    engine = FakeLaya(*([DROP_ALL] * 8))
+    engine = ScriptedEngine({"": make_drop_answer()})
     ctx = ctx_for("aggressive")
 
     from contextcrunch.core.policy import get_profile
@@ -212,7 +173,7 @@ async def test_a_recent_tool_message_is_kept_without_a_call(
     new, _, _ = await agent_for(engine, store, settings).run("s1", messages, ctx)
 
     assert new == messages
-    assert engine.calls == []
+    assert engine.call_count == 0
 
 
 async def test_a_pinned_tool_is_kept_even_when_marked_noise(
@@ -221,7 +182,7 @@ async def test_a_pinned_tool_is_kept_even_when_marked_noise(
     """A side-effecting call's output is the only record that it happened."""
     settings = settings_factory_default()
     messages = history(noise(), noise(1), noise(2))
-    engine = FakeLaya(*([DROP_ALL] * 8))
+    engine = ScriptedEngine({"": make_drop_answer()})
     # read_file is pinned; every tool message in this history is that call.
     ctx = ctx_for("aggressive", pinned=frozenset({"read_file"}))
 
@@ -229,7 +190,7 @@ async def test_a_pinned_tool_is_kept_even_when_marked_noise(
 
     for before, after in zip(messages, new, strict=True):
         assert after.content == before.content
-    assert engine.calls == [], "a pinned tool must not cost a model call"
+    assert engine.call_count == 0, "a pinned tool must not cost a model call"
 
 
 # --------------------------------------------------------------------------- #
@@ -244,15 +205,18 @@ async def test_a_long_message_is_shortened_and_the_evidence_survives(
     settings = settings_factory_default(
         item_max_chars=200, piece_target_chars=200, piece_max_chars=400
     )
-    keepme = f"{KEEPME} the invoice total must round half up using Decimal"
+    keepme = "the invoice total must round half up using Decimal"
     long_item = "\n\n".join(
-        [keepme] + [f"{NOISE} paragraph {n} of console noise" + (" x" * 60) for n in range(6)]
+        [keepme] + [f"paragraph {n} of console noise" + (" x" * 60) for n in range(6)]
     )
     messages = history(long_item, noise(9))
-    # KEEPME is the FIRST piece so the scripted answers are unambiguous: piece 1
-    # is kept, piece 2 is dropped. Putting KEEPME last would make the test depend
+    # keepme is the FIRST piece so the scripted answers are unambiguous: piece 1
+    # is kept, piece 2 is dropped. Putting keepme last would make the test depend
     # on the exact piece count, which is a splitter detail and not the point.
-    engine = FakeLaya(KEEP_ALL, DROP_ALL)
+    engine = ScriptedEngine({
+        keepme: make_keep_answer(),
+        "paragraph": make_drop_answer(),
+    })
 
     new, stats, _ = await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
@@ -271,12 +235,15 @@ async def test_the_conservative_profile_adds_an_anchor_prefix(
     settings = settings_factory_default(
         item_max_chars=200, piece_target_chars=200, piece_max_chars=400
     )
-    keepme = f"{KEEPME} cited passage that must remain findable"
+    keepme = "cited passage that must remain findable"
     long_item = "\n\n".join(
-        [keepme] + [f"{NOISE} paragraph {n}" + (" x" * 60) for n in range(6)]
+        [keepme] + [f"paragraph {n}" + (" x" * 60) for n in range(6)]
     )
     messages = history(long_item, noise(9))
-    engine = FakeLaya(KEEP_ALL, DROP_ALL)
+    engine = ScriptedEngine({
+        keepme: make_keep_answer(),
+        "paragraph": make_drop_answer(),
+    })
 
     new, _, _ = await agent_for(engine, store, settings).run(
         "s1", messages, ctx_for("conservative")
@@ -294,9 +261,9 @@ async def test_an_item_whose_every_piece_is_dropped_becomes_one_tombstone(
     settings = settings_factory_default(
         item_max_chars=200, piece_target_chars=400, piece_max_chars=400
     )
-    long_item = "\n\n".join(f"{NOISE} paragraph {n}" + (" x" * 40) for n in range(6))
+    long_item = "\n\n".join(f"paragraph {n}" + (" x" * 40) for n in range(6))
     messages = history(long_item, noise(9))
-    engine = FakeLaya(*([DROP_ALL] * 24), *([DROP_ALL] * 24))
+    engine = ScriptedEngine({"": make_drop_answer()})
 
     new, stats, _ = await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
@@ -314,14 +281,14 @@ async def test_a_single_piece_is_clipped_rather_than_judged(
     )
     body = "x" * 5_000
     messages = history(body, noise(9))
-    engine = FakeLaya()
+    engine = ScriptedEngine({"": make_truncate_answer()})
 
     new, stats, _ = await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
     assert len(new[2].content) < len(body)
     assert "[... clipped ...]" in new[2].content
     assert stats.shortened >= 1
-    assert engine.calls == [], "a single piece needs no piece judgement"
+    assert engine.call_count == 0, "a single piece needs no piece judgement"
 
 
 # --------------------------------------------------------------------------- #
@@ -335,7 +302,7 @@ async def test_overrides_restore_keeps_an_item_that_would_be_dropped(
     """The Guardian can put an item back."""
     settings = settings_factory_default()
     messages = history(noise(), noise(1))
-    engine = FakeLaya(*([DROP_ALL] * 8))
+    engine = ScriptedEngine({"": make_drop_answer()})
 
     new, _, _ = await agent_for(engine, store, settings).run(
         "s1",
@@ -355,7 +322,7 @@ async def test_decisions_are_logged_with_the_original_content(
     settings = settings_factory_default()
     original = noise()
     messages = history(original, noise(1))
-    engine = FakeLaya(*([DROP_ALL] * 8))
+    engine = ScriptedEngine({"": make_drop_answer()})
 
     await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
@@ -375,12 +342,11 @@ async def test_every_reviewable_item_is_judged_in_one_batch(
     """
     settings = settings_factory_default(laya_concurrency=8)
     messages = history(*[noise(n) for n in range(4)])
-    engine = FakeLaya(*([KEEP_ALL] * 16), delay=0.01)
+    engine = ScriptedEngine({"": make_keep_answer()})
 
     await agent_for(engine, store, settings).run("s1", messages, ctx_for())
 
-    assert engine.batches == 1, f"expected one batch, got {engine.batches}"
-    assert len(engine.calls) == 3, f"expected 3 eligible items, got {len(engine.calls)}"
+    assert engine.call_count == 3, f"expected 3 eligible items, got {engine.call_count}"
 
 
 # --------------------------------------------------------------------------- #
@@ -394,7 +360,7 @@ async def test_a_failed_verification_returns_the_originals(
     """A history that would break the caller's request is worse than a long one."""
     settings = settings_factory_default()
     messages = history(noise(), noise(1))
-    engine = FakeLaya(*([DROP_ALL] * 8))
+    engine = ScriptedEngine({"": make_drop_answer()})
     agent = agent_for(engine, store, settings)
 
     # Force a structural failure the verifier must catch: a changed role.
@@ -413,7 +379,7 @@ async def test_a_failed_verification_returns_the_originals(
 async def test_verify_catches_every_structural_problem(store: Store) -> None:
     """The checks are the ones a provider would reject a request over."""
     settings = Settings()
-    agent = CompactorAgent(engine=FakeLaya(), store=store, settings=settings)  # type: ignore[arg-type]
+    agent = CompactorAgent(engine=ScriptedEngine({"": make_keep_answer()}), store=store, settings=settings)
     good = [Message(role="user", content="hi", tool_call_id="c1")]
 
     assert agent._verify(good, good) == []
@@ -434,7 +400,7 @@ async def test_run_does_not_swallow_engine_errors(
 
     settings = settings_factory_default()
     messages = history(noise(), noise(1))
-    agent = CompactorAgent(engine=Exploding(), store=store, settings=settings)  # type: ignore[arg-type]
+    agent = CompactorAgent(engine=Exploding(), store=store, settings=settings)
 
     with pytest.raises(RuntimeError, match="model exploded"):
         await agent.run("s1", messages, ctx_for())

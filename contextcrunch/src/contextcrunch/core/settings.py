@@ -16,12 +16,12 @@ from typing import Literal
 from pydantic import AliasChoices, Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-LayaMode = Literal["http", "serve", "inprocess", "fake"]
+LayaMode = Literal["http", "serve", "inprocess", "replay"]
 
 #: Last-resort values, used only when a ``CC_`` variable is missing.
 #: They are deliberately kept in one place so they are easy to spot in review.
 EMERGENCY_DEFAULTS: dict[str, str] = {
-    "CC_LAYA_MODE": "fake",
+    "CC_LAYA_MODE": "http",
     "CC_LAYA_MODEL": "convaiinnovations/laya",
     "CC_LAYA_API_URL": "https://api.impossibl.com/v1/systemone",
     "CC_LAYA_API_KEY": "",
@@ -47,6 +47,8 @@ EMERGENCY_DEFAULTS: dict[str, str] = {
     # would mean whichever opened it first defines the schema for both.
     "CC_STORE_DB_PATH": "data/contextcrunch_store.db",
     "CC_STORE_ORIGINALS_DIR": "data/store_originals",
+    "CC_REPLAY_DIR": "data/replay",
+    "CC_QUESTION_VARIANT": "v1",
 }
 
 
@@ -61,11 +63,12 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    # Laya engine: http | serve | inprocess | fake
+    # Laya engine: http | serve | inprocess | replay
     laya_mode: LayaMode
     laya_model: str
     #: Full URL of the hosted Laya inference endpoint, bearer authenticated.
-    laya_api_url: str    #: Bearer token for the hosted endpoint. Read from the environment only,
+    laya_api_url: str
+    #: ****** for the hosted endpoint. Read from the environment only,
     #: never from the emergency defaults, and hidden from reprs and logs.
     laya_api_key: str = Field(
         default="",
@@ -103,6 +106,10 @@ class Settings(BaseSettings):
     # Storage Box (Store, per session). Separate from the above by design.
     store_db_path: str
     store_originals_dir: str
+    # Replay directory for cached real-Laya answers (required when laya_mode=replay)
+    replay_dir: str = ""
+    # Question variant to use (v1 or v2)
+    question_variant: str = "v1"
 
 
 @lru_cache(maxsize=1)

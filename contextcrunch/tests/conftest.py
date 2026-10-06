@@ -1,8 +1,8 @@
 """Shared test fixtures.
 
-Tests never load the real model. They run against the fake backend, or against
-a scripted backend that returns exactly the answers a test needs, so a policy
-test asserts on code rather than on a model's mood.
+Tests never load the real model. They run against a scripted engine that returns
+exactly the answers a test needs, so a policy test asserts on code rather than
+on a model's mood.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from contextcrunch.laya.types import LayaResult, parse_result
 
 #: Every tunable the tests need, so a test never depends on the developer's .env.
 BASE_ENV: dict[str, str] = {
-    "CC_LAYA_MODE": "fake",
+    "CC_LAYA_MODE": "inprocess",
     "CC_LAYA_MODEL": "convaiinnovations/laya",
     "CC_LAYA_API_URL": "https://api.example.test/v1/systemone",
     "CC_LAYA_API_KEY": "test-key",
@@ -144,30 +144,6 @@ def answers(
         },
         dict(QUESTION_TYPES),
     )
-
-
-class ScriptedBackend:
-    """A Laya backend that returns pre-canned answers, one call at a time."""
-
-    def __init__(self, *results: LayaResult) -> None:
-        self.queue = list(results)
-        self.calls: list[dict[str, Any]] = []
-
-    async def predict(self, state: dict[str, Any], label: str = "") -> LayaResult:
-        """Return the next scripted answer, or a default one when exhausted."""
-        self.calls.append({"state": state, "label": label})
-        if self.queue:
-            return self.queue.pop(0)
-        return answers()
-
-    async def aclose(self) -> None:
-        """Nothing to release."""
-
-
-@pytest.fixture
-def scripted() -> type[ScriptedBackend]:
-    """Return the scripted backend class."""
-    return ScriptedBackend
 
 
 #: A realistic tool output. Real code resists BPE compression, which is what a

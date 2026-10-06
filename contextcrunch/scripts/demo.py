@@ -1,9 +1,5 @@
 """A 30-second demo of ContextCrunch, for people who are not the author.
 
-Everything here runs offline in under a second and needs no LLM. The point is to
-make one idea obvious: **ContextCrunch makes a long agent history much cheaper
-without losing the facts that matter**, and every removal is reversible.
-
 The demo walks the real pipeline on a real trace:
 
 1. **Scout** looks at the history and says what kind of agent this is.
@@ -15,13 +11,8 @@ The demo walks the real pipeline on a real trace:
 
 Run from the repo root:
 
-    python scripts/demo.py --fake
-    python scripts/demo.py data/traces/coding_03.json --fake
-    python scripts/demo.py                # the real model from .env
-
-Use ``--fake`` when presenting. It is deterministic, it never fails on a network,
-and it produces the same numbers every run, which matters when somebody in the
-room is checking your arithmetic.
+    python scripts/demo.py
+    python scripts/demo.py data/traces/coding_03.json
 
 The Store is a temporary directory. A demo must not write to real data, least of
 all the side-car a production Guardian learns from.
@@ -32,7 +23,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -47,8 +37,9 @@ from contextcrunch.agents.guardian import (  # noqa: E402
 )
 from contextcrunch.agents.scout import AUTO, ScoutAgent  # noqa: E402
 from contextcrunch.agents.worker import CompactorAgent  # noqa: E402
+from contextcrunch.core.banner import print_banner  # noqa: E402
 from contextcrunch.core.messages import Message, as_messages  # noqa: E402
-from contextcrunch.core.settings import get_settings, reset_settings_cache  # noqa: E402
+from contextcrunch.core.settings import get_settings  # noqa: E402
 from contextcrunch.core.tokens import count_tokens  # noqa: E402
 from contextcrunch.laya.client import build_engine  # noqa: E402
 from contextcrunch.storage.store import Store  # noqa: E402
@@ -460,10 +451,6 @@ def show_closing(lost: int) -> None:
 
 async def run(args: argparse.Namespace) -> None:
     """Run the whole demo."""
-    if args.fake:
-        os.environ["CC_LAYA_MODE"] = "fake"
-        reset_settings_cache()
-
     settings = get_settings()
     scout = ScoutAgent()
 
@@ -471,10 +458,10 @@ async def run(args: argparse.Namespace) -> None:
     raw_messages, key = load(trace)
     messages = as_messages(raw_messages)
 
-    show_banner("fake (offline)" if args.fake else settings.laya_mode, trace)
-    ctx = show_scout(scout, messages, settings.default_profile)
-
     engine = build_engine(settings)
+    print_banner(settings, engine)
+
+    ctx = show_scout(scout, messages, settings.default_profile)
 
     with temp_store() as store:
         agent = CompactorAgent(engine=engine, store=store, settings=settings)
@@ -500,9 +487,6 @@ def main() -> None:
         nargs="?",
         default=None,
         help="trace JSON to use; defaults to the first research trace",
-    )
-    parser.add_argument(
-        "--fake", action="store_true", help="use the offline fake model, no network"
     )
     args = parser.parse_args()
 

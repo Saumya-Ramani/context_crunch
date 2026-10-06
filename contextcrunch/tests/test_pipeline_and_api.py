@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.conftest import ScriptedBackend, answers, history
+from tests.conftest import answers, history
+from tests.helpers import ScriptedEngine, make_drop_answer, make_keep_answer
 
 from contextcrunch.core.pipeline import Cruncher, compact_history
 from contextcrunch.core.settings import reset_settings_cache
-from contextcrunch.laya.client import FakeBackend, build_client
+from contextcrunch.laya.client import build_client
 
 DROP_ALL = answers(
     verdict="drop", essential=0.0, superseded=0.9, relevance=0.0, verdict_conf=0.99
@@ -17,7 +18,8 @@ DROP_ALL = answers(
 
 async def test_pipeline_shrinks_a_history() -> None:
     """The end-to-end path must actually save tokens."""
-    cruncher = Cruncher(client=ScriptedBackend(*([DROP_ALL] * 8)), box=None)
+    engine = ScriptedEngine({"": make_drop_answer()})
+    cruncher = Cruncher(client=engine, box=None)
     report = await compact_history(
         [m.model_dump() for m in history(3)], cruncher=cruncher, profile="aggressive"
     )
@@ -28,7 +30,8 @@ async def test_pipeline_shrinks_a_history() -> None:
 
 async def test_pipeline_keeps_a_small_history_untouched() -> None:
     """Below the trigger there is nothing to do, and nothing is paid for."""
-    cruncher = Cruncher(client=ScriptedBackend(), box=None)
+    engine = ScriptedEngine({"": make_keep_answer()})
+    cruncher = Cruncher(client=engine, box=None)
     report = await compact_history(
         [{"role": "user", "content": "hi"}], cruncher=cruncher, profile="aggressive"
     )
@@ -54,16 +57,18 @@ async def test_pipeline_fails_open_on_a_broken_client() -> None:
 
 async def test_pipeline_handles_an_empty_history() -> None:
     """An empty request must not crash."""
-    report = await compact_history([], cruncher=Cruncher(client=FakeBackend(), box=None))
+    engine = ScriptedEngine({"": make_keep_answer()})
+    report = await compact_history([], cruncher=Cruncher(client=engine, box=None))
     assert report.messages == []
 
 
-async def test_fake_backend_answers_all_five_questions() -> None:
-    """The fake backend must honour the contract the policy engine relies on."""
+async def test_scripted_engine_answers_all_five_questions() -> None:
+    """The scripted engine must honour the contract the policy engine relies on."""
     from contextcrunch.core.settings import get_settings
     from contextcrunch.core.state import build_state
 
-    result = await FakeBackend().predict(build_state(history(1), 3, "goal", get_settings()))
+    engine = ScriptedEngine({"": make_keep_answer()})
+    result = await engine.predict(build_state(history(1), 3, "goal", get_settings()))
     assert set(result.answers) == {
         "verdict",
         "essential",
@@ -73,23 +78,24 @@ async def test_fake_backend_answers_all_five_questions() -> None:
     }
 
 
-async def test_fake_backend_is_deterministic() -> None:
+async def test_scripted_engine_is_deterministic() -> None:
     """The same state must give the same answers, so tests are reproducible."""
     from contextcrunch.core.settings import get_settings
     from contextcrunch.core.state import build_state
 
+    engine = ScriptedEngine({"": make_keep_answer()})
     state = build_state(history(1), 3, "goal", get_settings())
-    first = await FakeBackend().predict(state, "label")
-    second = await FakeBackend().predict(state, "label")
+    first = await engine.predict(state, "label")
+    second = await engine.predict(state, "label")
     assert first.answers["verdict"].choice == second.answers["verdict"].choice
 
 
 @pytest.mark.parametrize(
     ("mode", "expected"),
     [
-        ("fake", "FakeBackend"),
         ("inprocess", "InprocessBackend"),
         ("http", "HostedBackend"),
+        ("serve", "ServeBackend"),
     ],
 )
 def test_build_client_follows_the_mode(mode: str, expected: str) -> None:
@@ -104,12 +110,26 @@ def test_build_client_follows_the_mode(mode: str, expected: str) -> None:
         reset_settings_cache()
 
 
+def test_build_client_replay_mode(tmp_path) -> None:
+    """Replay mode requires a valid replay directory."""
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setenv("CC_LAYA_MODE", "replay")
+    monkeypatch.setenv("CC_REPLAY_DIR", str(tmp_path))
+    reset_settings_cache()
+    try:
+        client = build_client()
+        assert type(client).__name__ == "ReplayBackend"
+    finally:
+        monkeypatch.undo()
+        reset_settings_cache()
+
+
 def test_health_endpoint() -> None:
     """The gateway needs a health check."""
     with TestClient(_app()) as client:
         payload = client.get("/health").json()
     assert payload["status"] == "ok"
-    assert payload["laya_mode"] == "fake"
+    assert payload["laya_mode"] == "inprocess"
 
 
 def test_compact_endpoint_returns_a_history() -> None:
@@ -143,7 +163,8 @@ def test_unknown_run_is_a_404() -> None:
 
 
 def _app():
-    """Return an app wired to the fake backend and no database."""
+    """Return an app wired to the scripted engine and no database."""
     from contextcrunch.api.app import create_app
+    from tests.helpers import ScriptedEngine, make_keep_answer
 
-    return create_app(Cruncher(client=FakeBackend(), box=None))
+    return create_app(Cruncher(client=ScriptedEngine({"": make_keep_answer()}), box=None))

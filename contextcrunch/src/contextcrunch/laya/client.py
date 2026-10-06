@@ -1,13 +1,13 @@
 """The only place ContextCrunch talks to a model.
 
-Four backends sit behind one small interface:
+Three backends sit behind one small interface:
 
 - ``http`` (the default) calls the hosted inference API with a bearer token.
   This is the fast path, so it is the one the service uses;
 - ``serve`` calls a self-hosted ``python -m laya.serve`` instance;
 - ``inprocess`` runs the model in this process. It needs no network but it is
   slow, because it pays model load and inference cost on every call;
-- ``fake`` returns deterministic answers so tests never load a model.
+- ``replay`` reads recorded real-Laya answers from a cache directory.
 
 Every backend honours the token budget, the question set and the concurrency
 limit from :mod:`contextcrunch.core.settings`.
@@ -16,7 +16,6 @@ limit from :mod:`contextcrunch.core.settings`.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
@@ -108,119 +107,52 @@ class ServeBackend(LayaClient):
         await self._client.aclose()
 
 
-class FakeBackend(LayaClient):
-    """Deterministic stand-in for Laya, used by tests and offline runs.
+class ReplayBackend(LayaClient):
+    """Read recorded real-Laya answers from a cache directory."""
 
-    It reads the state and answers the way a well-behaved model would, so the
-    policy engine, the refiner and the API can all be exercised without a model.
+    def __init__(self, replay_dir: str) -> None:
+        import json
+        from pathlib import Path
 
-    Two modes. Content carrying ``[[KEEPME]]`` is always kept and content carrying
-    ``[[NOISE]]`` is always droppable, which is what lets a synthetic trace with
-    a known answer be scored end to end without a model. Anything unmarked falls
-    back to a stable hash, so an unmarked item still gets a reproducible verdict
-    rather than a random one.
-    """
+        self._replay_dir = Path(replay_dir)
+        self._cache: dict[str, LayaResult] = {}
+        self._load_cache()
 
-    #: Probability an unmarked item is treated as droppable.
-    DROP_CHANCE = 0.5
+    def _load_cache(self) -> None:
+        """Load all JSONL cache files from the replay directory."""
+        import json
+        from contextcrunch.laya.types import parse_result
+        from contextcrunch.core.questions import QUESTION_TYPES
 
-    #: Marks content that must survive.
-    KEEP_MARKER = "[[KEEPME]]"
-    #: Marks content that may go.
-    NOISE_MARKER = "[[NOISE]]"
+        if not self._replay_dir.exists():
+            raise LayaUnavailable(f"Replay directory does not exist: {self._replay_dir}")
+
+        for cache_file in self._replay_dir.glob("*.jsonl"):
+            with cache_file.open("r", encoding="utf-8") as f:
+                for line_num, line in enumerate(f):
+                    if line_num == 0:
+                        # Skip header line
+                        continue
+                    try:
+                        record = json.loads(line)
+                        key = record["key"]
+                        answers = parse_result(record["raw"], dict(QUESTION_TYPES))
+                        self._cache[key] = answers
+                    except (json.JSONDecodeError, KeyError):
+                        continue
 
     async def predict(self, state: dict[str, Any], label: str = "") -> LayaResult:
-        item = state.get("item") if isinstance(state, dict) else None
-        item = item if isinstance(item, dict) else {}
-        digest = _digest(f"{label}|{item.get('content', '')}")
-        content = str(item.get("content", ""))
-        goal = str(state.get("goal", "")) if isinstance(state, dict) else ""
-        overlap = _overlap(content, goal)
-        big = len(content) > 800
+        from contextcrunch.laya.cache import cache_key
+        from contextcrunch.core.questions import QUESTION_SET
 
-        # A marker beats everything else: it is a planted, known answer, and
-        # guessing at it would make the evaluation meaningless.
-        if self.KEEP_MARKER in content:
-            drop = False
-        elif self.NOISE_MARKER in content:
-            drop = True
-        else:
-            drop = int(digest[0], 16) / 255.0 < self.DROP_CHANCE
+        key = cache_key(state, QUESTION_SET)
+        if key not in self._cache:
+            raise LayaUnavailable(f"Cache miss for key: {key[:16]}... (run collect_answers.py first)")
+        return self._cache[key]
 
-        return parse_result(
-            {
-                "model": "fake",
-                "answers": {
-                    "verdict": {
-                        "type": "choice",
-                        "choice": "drop" if drop else ("truncate" if big else "keep"),
-                        "confidence": 0.9,
-                        "answer_confidence": 0.9,
-                        "probabilities": {"keep": 0.1, "truncate": 0.1, "drop": 0.8}
-                        if drop
-                        else {"keep": 0.7, "truncate": 0.2, "drop": 0.1},
-                        "action": {"act_probability": 1.0},
-                    },
-                    "essential": {
-                        "type": "noul",
-                        "noul": 0.1 + (0.4 * overlap),
-                        "confidence": 0.9,
-                        "answer_confidence": 0.9,
-                        "action": {"act_probability": 1.0},
-                    },
-                    "consumed": {
-                        "type": "noul",
-                        "noul": 0.9 if drop else 0.2,
-                        "confidence": 0.9,
-                        "answer_confidence": 0.9,
-                        "action": {"act_probability": 1.0},
-                    },
-                    "superseded": {
-                        "type": "noul",
-                        "noul": 0.8 if drop else 0.1,
-                        "confidence": 0.9,
-                        "answer_confidence": 0.9,
-                        "action": {"act_probability": 1.0},
-                    },
-                    "relevance": {
-                        "type": "score",
-                        "score": 0.3 if drop else 2.0,
-                        "confidence": 0.9,
-                        "answer_confidence": 0.9,
-                        "probabilities": {"0": 0.7, "1": 0.2, "2": 0.1, "3": 0.0}
-                        if drop
-                        else {"0": 0.0, "1": 0.1, "2": 0.5, "3": 0.4},
-                        "legend": {
-                            "0": "noise",
-                            "1": "background",
-                            "2": "supporting",
-                            "3": "critical",
-                        },
-                        "action": {"act_probability": 1.0},
-                    },
-                },
-                "usage": {"input_tokens": 0, "output_tokens": 0, "state_tokens": 0},
-            },
-            dict(QUESTION_TYPES),
-        )
-
-
-def _digest(text: str) -> str:
-    """Return a short stable hash of ``text``."""
-    return hashlib.sha256(text.encode("utf-8", "ignore")).hexdigest()
-
-
-def _overlap(content: str, goal: str) -> float:
-    """Return how much of ``content``'s vocabulary also appears in ``goal``."""
-    if not goal:
-        return 0.0
-    goal_words = {word for word in goal.lower().split() if len(word) > 3}
-    if not goal_words:
-        return 0.0
-    words = {word for word in content.lower().split() if len(word) > 3}
-    if not words:
-        return 0.0
-    return len(words & goal_words) / len(words)
+    @property
+    def mode(self) -> str:
+        return "replay"
 
 
 def build_client() -> LayaClient:
@@ -236,7 +168,12 @@ def build_client() -> LayaClient:
         return ServeBackend()
     if mode == "inprocess":
         return InprocessBackend()
-    return FakeBackend()
+    if mode == "replay":
+        replay_dir = get_settings().replay_dir
+        if not replay_dir:
+            raise LayaUnavailable("CC_REPLAY_DIR must be set when laya_mode=replay")
+        return ReplayBackend(replay_dir)
+    raise LayaUnavailable(f"Unknown laya_mode: {mode}")
 
 
 def build_engine(settings: Settings | None = None) -> LayaEngine:
@@ -247,5 +184,19 @@ def build_engine(settings: Settings | None = None) -> LayaEngine:
     this module, so a real import here would be circular.
     """
     from contextcrunch.laya.engine import LayaEngine
+    from contextcrunch.laya.cached_engine import CachedEngine
+    from contextcrunch.laya.cache import LayaCache
+
+    settings = settings or get_settings()
+    mode = settings.laya_mode
+
+    if mode == "replay":
+        if not settings.replay_dir:
+            raise LayaUnavailable("CC_REPLAY_DIR must be set when laya_mode=replay")
+        cache = LayaCache(settings.replay_dir)
+        return CachedEngine(cache, settings)
+
+    client = build_client()
+    return LayaEngine(client=client, settings=settings)
 
     return LayaEngine(client=build_client(), settings=settings)

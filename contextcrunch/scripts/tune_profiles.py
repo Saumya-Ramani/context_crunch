@@ -35,6 +35,7 @@ from pathlib import Path
 # root is added here rather than left as a step the caller has to remember.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from contextcrunch.core.banner import print_banner  # noqa: E402
 from contextcrunch.core.policy import (
     DROP as ACTION_DROP,
     KEEP,
@@ -44,7 +45,9 @@ from contextcrunch.core.policy import (
     decide,
 )
 from contextcrunch.core.questions import QUESTION_TYPES
+from contextcrunch.core.settings import get_settings  # noqa: E402
 from contextcrunch.core.tokens import count_tokens
+from contextcrunch.laya.client import build_engine  # noqa: E402
 from contextcrunch.laya.types import parse_result
 from scripts.evalset import DROP, Case, cases_for
 
@@ -93,7 +96,7 @@ def state_for(case: Case) -> dict:
     }
 
 
-async def judge(cases, *, offline: bool) -> list[Judgement]:
+async def judge(cases) -> list[Judgement]:
     """Get Laya's answers for every case, reusing the cache when possible.
 
     A case the API cannot judge is skipped and reported, never fatal: one flaky
@@ -103,34 +106,23 @@ async def judge(cases, *, offline: bool) -> list[Judgement]:
     out: list[Judgement] = []
     failures: list[str] = []
 
-    client = None
-    if not offline:
-        from contextcrunch.laya.client import build_client
-
-        client = build_client()
+    settings = get_settings()
+    engine = build_engine(settings)
     try:
         for case in cases:
             key = f"{case.name}|{case.content[:64]}"
             if key not in cache:
-                if offline:
-                    cache[key] = None
-                else:
-                    try:
-                        result = await client.predict(state_for(case), case.name)
-                        cache[key] = result.model_dump(mode="json")
-                    except Exception as exc:  # noqa: BLE001 - report and move on
-                        failures.append(f"{case.name}: {type(exc).__name__}: {exc}")
-                        continue
+                try:
+                    result = await engine.decide([state_for(case)], [case.name])
+                    cache[key] = result[0].model_dump(mode="json")
+                except Exception as exc:  # noqa: BLE001 - report and move on
+                    failures.append(f"{case.name}: {type(exc).__name__}: {exc}")
+                    continue
             payload = cache[key]
-            answers = (
-                _fake_answers(case)
-                if payload is None
-                else parse_result(payload, dict(QUESTION_TYPES))
-            )
+            answers = parse_result(payload, dict(QUESTION_TYPES))
             out.append(Judgement(case=case, answers=answers))
     finally:
-        if client is not None:
-            await client.aclose()
+        await engine.aclose()
         CACHE.parent.mkdir(parents=True, exist_ok=True)
         CACHE.write_text(json.dumps(cache, indent=2))
 
@@ -334,17 +326,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--archetype", choices=["coding", "support", "research", "all"],
                         default="all")
-    parser.add_argument("--offline", action="store_true", help="use the fake backend")
     parser.add_argument("--search", action="store_true", help="also report the loosest row")
     args = parser.parse_args()
 
+    settings = get_settings()
+    engine = build_engine(settings)
+    print_banner(settings, engine)
+
     archetypes = ["coding", "support", "research"] if args.archetype == "all" else [args.archetype]
     for archetype in archetypes:
-        report(archetype, asyncio.run(judge(cases_for(archetype), offline=args.offline)),
+        report(archetype, asyncio.run(judge(cases_for(archetype))),
                do_search=args.search)
 
-    if not args.offline:
-        print(f"\nanswers cached in {CACHE}")
+    print(f"\nanswers cached in {CACHE}")
 
 
 if __name__ == "__main__":

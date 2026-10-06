@@ -10,7 +10,7 @@ from contextcrunch.core.settings import EMERGENCY_DEFAULTS, Settings, get_settin
 def test_reads_every_tunable_from_the_env() -> None:
     """Settings must pick up the CC_ prefixed variables."""
     settings = get_settings()
-    assert settings.laya_mode == "fake"
+    assert settings.laya_mode == "inprocess"
     assert settings.default_profile == "conservative"
     assert settings.trigger_tokens == 200
 
@@ -26,9 +26,11 @@ def test_tunables_have_no_defaults() -> None:
 
     ``laya_api_key`` is the one exemption. It is a secret, not a tuning number,
     and defaulting it would risk shipping a placeholder credential.
+    ``replay_dir`` and ``question_variant`` have defaults because they are optional
+    configuration (replay is only needed in replay mode, question_variant defaults to v1).
     """
     for name, field in Settings.model_fields.items():
-        if name in ("model_config", "laya_api_key"):
+        if name in ("model_config", "laya_api_key", "replay_dir", "question_variant"):
             continue
         assert field.is_required(), f"{name} must be required"
 
@@ -63,7 +65,7 @@ def test_missing_config_warns_and_degrades(monkeypatch: pytest.MonkeyPatch, caps
     captured = capsys.readouterr()
 
     assert "incomplete configuration" in captured.err
-    assert settings.laya_mode == "fake"
+    assert settings.laya_mode == "http"
     # The emergency value, not the test fixture's value, since .env is off.
     assert settings.trigger_tokens == int(EMERGENCY_DEFAULTS["CC_TRIGGER_TOKENS"])
 

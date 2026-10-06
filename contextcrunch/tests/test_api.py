@@ -5,7 +5,7 @@ matters most is that it never breaks that call. Most of these tests are therefor
 about failure: a dead engine, a timeout, a malformed request. Each one asserts
 that the caller gets its own history back and can carry on.
 
-A fake engine is injected throughout. No model is loaded and no network call is
+A scripted engine is injected throughout. No model is loaded and no network call is
 made, so the suite is fast and deterministic.
 """
 
@@ -18,42 +18,17 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from tests.conftest import answers
+from tests.helpers import ScriptedEngine, make_drop_answer, make_keep_answer
 
 from contextcrunch.agents.worker import CompactorAgent
 from contextcrunch.api.main import create_app
 from contextcrunch.core.messages import as_messages
 from contextcrunch.laya.engine import LayaEngine
 
-#: Marker for material that should be removed.
-NOISE = "[[NOISE]]"
-
 #: Answers that clear every drop gate.
 DROP_ALL = answers(
     verdict="drop", essential=0.0, superseded=0.9, relevance=0.0, verdict_conf=0.99
 )
-
-
-class FakeLaya:
-    """A scripted engine that answers in call order.
-
-    ``delay`` makes every batch slow, which is how the timeout test reaches its
-    deadline without the test itself having to wait for a real model.
-    """
-
-    def __init__(self, *results, delay: float = 0.0) -> None:
-        self.queue = list(results)
-        self.delay = delay
-        self.calls: list[list[str]] = []
-
-    async def decide(self, states, labels=None):
-        """Answer every state in one batch."""
-        self.calls.append([str(label) for label in (labels or [])])
-        if self.delay:
-            await asyncio.sleep(self.delay)
-        return [self.queue.pop(0) if self.queue else answers() for _ in states]
-
-    async def aclose(self) -> None:
-        """Nothing to release."""
 
 
 class Exploding:
@@ -66,9 +41,30 @@ class Exploding:
         """Nothing to release."""
 
 
+# Alias for backward compatibility with tests that still use FakeLaya
+class FakeLaya:
+    """Backward-compatible wrapper for tests using the old FakeLaya interface."""
+
+    def __init__(self, *results, delay: float = 0.0) -> None:
+        self._engine = ScriptedEngine({"": results[0] if results else make_keep_answer()}, delay=delay)
+        self._results = list(results)
+        self._delay = delay
+        self.calls: list[list[str]] = []
+
+    async def decide(self, states, labels=None):
+        """Answer every state in one batch."""
+        self.calls.append([str(label) for label in (labels or [])])
+        if self._delay:
+            await asyncio.sleep(self._delay)
+        return [self._results.pop(0) if self._results else make_keep_answer() for _ in states]
+
+    async def aclose(self) -> None:
+        """Nothing to release."""
+
+
 def noise(index: int = 0) -> str:
     """Return tool output big enough to be worth judging."""
-    return f"{NOISE} " + ("filler line of console output\n" * 40) + f" end{index}"
+    return "filler line of console output\n" * 40 + f" end{index}"
 
 
 def trace(*contents: str, filler: int = 3) -> list[dict[str, Any]]:
@@ -139,7 +135,8 @@ def test_health_reports_the_backend_in_use(
 ) -> None:
     """A host needs to know which model this instance will call."""
     settings = settings_factory_api()
-    with build_client(settings, FakeLaya(), tmp_path) as client:
+    engine = ScriptedEngine({"": make_keep_answer()})
+    with build_client(settings, engine, tmp_path) as client:
         body = client.get("/health").json()
 
     assert body["status"] == "ok"
@@ -148,7 +145,8 @@ def test_health_reports_the_backend_in_use(
 
 def test_health_needs_no_session(settings_factory_api, tmp_path) -> None:
     """Health must answer even when nothing has been compacted yet."""
-    with build_client(settings_factory_api(), FakeLaya(), tmp_path) as client:
+    engine = ScriptedEngine({"": make_keep_answer()})
+    with build_client(settings_factory_api(), engine, tmp_path) as client:
         assert client.get("/health").status_code == 200
 
 
@@ -159,7 +157,7 @@ def test_health_needs_no_session(settings_factory_api, tmp_path) -> None:
 
 def test_a_noise_tool_message_is_tombstoned(settings_factory_api, tmp_path) -> None:
     """The end-to-end path removes junk and keeps the conversation's shape."""
-    engine = FakeLaya(*([DROP_ALL] * 16))
+    engine = ScriptedEngine({"": make_drop_answer()})
     with build_client(settings_factory_api(), engine, tmp_path) as client:
         response = client.post(
             "/v1/compact",
@@ -189,7 +187,7 @@ def test_a_compacted_history_is_accepted_by_the_message_model(
     so the response is parsed back through the real model rather than inspected
     field by field.
     """
-    engine = FakeLaya(*([DROP_ALL] * 16))
+    engine = ScriptedEngine({"": make_drop_answer()})
     with build_client(settings_factory_api(), engine, tmp_path) as client:
         body = client.post(
             "/v1/compact", json={"messages": trace(noise(), noise(1)), "session_id": "s1"}
@@ -202,7 +200,8 @@ def test_a_compacted_history_is_accepted_by_the_message_model(
 
 def test_an_explicit_profile_is_reported_back(settings_factory_api, tmp_path) -> None:
     """The host asked for a profile, so the host is told which one was used."""
-    with build_client(settings_factory_api(), FakeLaya(*([DROP_ALL] * 16)), tmp_path) as client:
+    engine = ScriptedEngine({"": make_drop_answer()})
+    with build_client(settings_factory_api(), engine, tmp_path) as client:
         body = client.post(
             "/v1/compact",
             json={"messages": trace(noise()), "session_id": "s1", "profile": "aggressive"},
@@ -222,7 +221,8 @@ def test_invalid_input_is_rejected(settings_factory_api, tmp_path) -> None:
     This is the one case that does return an error: an empty ``messages`` list is
     a mistake in the host, and hiding it would hide the bug.
     """
-    with build_client(settings_factory_api(), FakeLaya(), tmp_path) as client:
+    engine = ScriptedEngine({"": make_keep_answer()})
+    with build_client(settings_factory_api(), engine, tmp_path) as client:
         assert client.post("/v1/compact", json={"messages": []}).status_code == 422
         assert client.post("/v1/compact", json={}).status_code == 422
         assert client.post("/v1/compact", json={"messages": "not a list"}).status_code == 422
@@ -233,7 +233,8 @@ def test_invalid_input_is_rejected(settings_factory_api, tmp_path) -> None:
 def test_a_broken_engine_fails_open(settings_factory_api, tmp_path) -> None:
     """A model that is down must not take the host's LLM call with it."""
     messages = trace(noise(), noise(1))
-    with build_client(settings_factory_api(), Exploding(), tmp_path) as client:
+    engine = Exploding()
+    with build_client(settings_factory_api(), engine, tmp_path) as client:
         response = client.post(
             "/v1/compact", json={"messages": messages, "session_id": "s1"}
         )
@@ -252,7 +253,7 @@ def test_a_timeout_fails_open(settings_factory_api, tmp_path) -> None:
     """A slow model must not stall the host past its own deadline."""
     messages = trace(noise(), noise(1))
     settings = settings_factory_api(deadline_s=1)
-    engine = FakeLaya(*([DROP_ALL] * 16), delay=5)
+    engine = ScriptedEngine({"": make_drop_answer()}, delay=5)
 
     with build_client(settings, engine, tmp_path) as client:
         response = client.post(
@@ -281,7 +282,8 @@ def test_a_traceback_is_logged_but_never_returned(
     # root logger. `caplog` needs its own handler on that logger, so the level
     # is set here rather than relying on the app's configuration.
     with caplog.at_level(logging.WARNING, logger="contextcrunch.api"):
-        with build_client(settings_factory_api(), Exploding(), tmp_path) as client:
+        engine = Exploding()
+        with build_client(settings_factory_api(), engine, tmp_path) as client:
             body = client.post(
                 "/v1/compact", json={"messages": messages, "session_id": "s1"}
             ).json()
